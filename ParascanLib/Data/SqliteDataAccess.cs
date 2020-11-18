@@ -4,17 +4,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
-namespace Parascan.Data
+namespace ParascanLib.Data
 {
-    public class DAccess
+    public class SqliteDataAccess
     {
         string dbName = "";
-        public DAccess(string dbName)
+        public SqliteDataAccess(string dbName)
         {
             this.dbName = dbName;
         }
+
         public void CreateSchema()
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -37,8 +37,8 @@ namespace Parascan.Data
                     command.CommandText = @"CREATE TABLE files("
                         + " fileid INTEGER PRIMARY KEY AUTOINCREMENT,"
                         + " scanid INTEGER NOT NULL,"
-                        + " filepath TEXT NOT NULL);";
-                       
+                        + " path TEXT NOT NULL);";
+
                     command.ExecuteNonQuery();
 
                     //Create table hashes
@@ -77,22 +77,22 @@ namespace Parascan.Data
 
                     command.ExecuteNonQuery();
 
-                    
-
 
 
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show("Problem creating schema: " + e.Message, "Error", MessageBoxButtons.OK);
+                    //MessageBox.Show("Problem creating schema: " + e.Message, "Error", MessageBoxButtons.OK);
+                    throw new Exception("error creating schema " + e.Message);
                 }
                 finally
                 {
                     connection.Close();
                 }
 
-            }//end using
+            }
         }
+
         public void InsertMeta(string datestring, string scandirectory, string codename)
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -111,7 +111,7 @@ namespace Parascan.Data
 
                     command.ExecuteNonQuery();
 
-                      
+
                 }
                 catch (Exception e)
                 {
@@ -125,6 +125,7 @@ namespace Parascan.Data
 
             }
         }
+
         public void InsertFile(string filepath, int scanid)
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -135,18 +136,18 @@ namespace Parascan.Data
                     var command = connection.CreateCommand();
 
                     //Create table meta
-                    command.CommandText = @"INSERT INTO files (scanid, filepath)"
+                    command.CommandText = @"INSERT INTO files (scanid, path)"
                     + " VALUES ($si, $fp);";
                     command.Parameters.AddWithValue("$si", scanid);
                     command.Parameters.AddWithValue("$fp", filepath);
-                   
+
                     command.ExecuteNonQuery();
 
 
                 }
                 catch (Exception e)
                 {
-                   // MessageBox.Show("Problem inserting file: " + filepath + " " + e.Message, "Error", MessageBoxButtons.OK);
+                    // MessageBox.Show("Problem inserting file: " + filepath + " " + e.Message, "Error", MessageBoxButtons.OK);
                     throw new Exception("error inserting file: " + filepath + " " + e.Message);
                 }
                 finally
@@ -187,6 +188,7 @@ namespace Parascan.Data
 
             }//end using
         }
+
         public void InsertExtensions(int fileid, string extension)
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -218,6 +220,7 @@ namespace Parascan.Data
 
             }//end using
         }
+
         public void InsertLineCounts(int fileid, int linecount)
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -249,6 +252,7 @@ namespace Parascan.Data
 
             }//end using
         }
+
         public void InsertFileSize(int fileid, int filesize)
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -280,6 +284,7 @@ namespace Parascan.Data
 
             }//end using
         }
+
         public void InsertFileNames(int fileid, string filename)
         {
             using (var connection = new SqliteConnection("Data Source=" + dbName))
@@ -311,6 +316,7 @@ namespace Parascan.Data
 
             }//end using
         }
+
         public int GetMetaId(string scandirectory)
         {
             int scanid = 0;
@@ -330,7 +336,7 @@ namespace Parascan.Data
                         while (reader.Read())
                         {
                             scanid = reader.GetInt32(0);
-                                                     
+
                         }
                     }
 
@@ -338,7 +344,7 @@ namespace Parascan.Data
                 }
                 catch (Exception e)
                 {
-                   // MessageBox.Show("Problem inserting meta: " + e.Message, "Error", MessageBoxButtons.OK);
+                    // MessageBox.Show("Problem inserting meta: " + e.Message, "Error", MessageBoxButtons.OK);
                     throw new Exception("Problem inserting meta: " + e.Message);
                 }
                 finally
@@ -399,7 +405,7 @@ namespace Parascan.Data
                     var command = connection.CreateCommand();
 
                     //Create table meta
-                    command.CommandText = @"SELECT fileid, filepath FROM files WHERE scanid = $sd";
+                    command.CommandText = @"SELECT fileid, path FROM files WHERE scanid = $sd";
                     command.Parameters.AddWithValue("$sd", scanid);
 
                     using (var reader = command.ExecuteReader())
@@ -430,203 +436,7 @@ namespace Parascan.Data
 
             return files;
         }
-        public List<string> GetExtensionsDistinct()
-        {
-            List<string> extensions = new List<string>();
-            using (var connection = new SqliteConnection("Data Source=" + dbName))
-            {
-                try
-                {
-                    connection.Open();
-                    var command = connection.CreateCommand();
-
-                    //Create table meta
-                    command.CommandText = @"SELECT DISTINCT extension FROM extensions;";
-                    
-                    using (var reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            extensions.Add(reader.GetString(0));
-                        }
-                    }
-
-
-                }
-                catch (Exception e)
-                {
-                    // MessageBox.Show("Problem inserting meta: " + e.Message, "Error", MessageBoxButtons.OK);
-                    throw new Exception("Problem getting extensions: " + e.Message);
-                }
-                finally
-                {
-                    connection.Close();
-                }
-
-            }//end using
-            return extensions;
-
-        }
-        public void CreateViews()
-        {
-            using (var connection = new SqliteConnection("Data Source=" + dbName))
-            {
-                try
-                {
-                    connection.Open();
-                    var command = connection.CreateCommand();
-
-
-                    //Create views from file extensions
-                    List<string> extensions = GetExtensionsDistinct();
-                    //create filepath views by extension
-                    foreach (var ext in extensions)
-                    {
-                       
-                        command.CommandText = @"CREATE VIEW v_"
-                        + ext + "_filepaths AS "
-                        + "SELECT"
-                        + " filepath "
-                        + "FROM"
-                        + " files f2 "
-                        + "LEFT JOIN extensions e2 ON"
-                        + " f2.fileid = e2.fileid "
-                        + "WHERE e2.extension = '" + ext + "';";
-                        try
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        catch (Exception ex)
-                        {
-                            //do nothing for now
-                        }
-                        
-                    }
-
-                    //create filename views by extension
-                    foreach (var ext in extensions)
-                    {
-                        //Create table fileNames
-                        command.CommandText = @"CREATE VIEW v_"
-                        + ext + "_filename AS "
-                        + "SELECT"
-                        + " filename "
-                        + "FROM"
-                        + " filenames f2 "
-                        + "LEFT JOIN extensions e2 ON"
-                        + " f2.fileid = e2.fileid "
-                        + "WHERE e2.extension = '" + ext + "';";
-                        try
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        catch (Exception ex)
-                        {
-                            //do nothing for now
-                        }
-
-                    }
-
-                    //create view v_filenamewithhash
-                    command.CommandText = @"CREATE VIEW v_fileid_filename_hash AS "
-                        + "SELECT"
-                        + " f2.fileid, filename, hash "
-                        + "FROM"
-                        + " filenames f2 "
-                        + "INNER JOIN hashes h2 ON h2.fileid = f2.fileid;";
-                                         
-                    try
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                    catch (Exception ex)
-                    {
-                        //do nothing for now
-                    }
-
-                    //create view v_linecountsbyext
-                    command.CommandText = @"CREATE VIEW v_fileid_ext_linecount AS "
-                        + "SELECT"
-                        + " f2.fileid, extension, linecount "
-                        + "FROM"
-                        + " extensions f2 "
-                        + "INNER JOIN linecounts h2 ON h2.fileid = f2.fileid;";
-
-                    try
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                    catch (Exception ex)
-                    {
-                        //do nothing for now
-                    }
-
-
-                    //create linecounts by extension
-                    foreach (var ext in extensions)
-                    {
-
-                        command.CommandText = @"CREATE VIEW v_"
-                        + ext + "_linecounts AS "
-                        + "SELECT SUM(linecount) FROM v_fileid_ext_linecount vl WHERE extension = '" + ext + "';";
-                        try
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        catch (Exception ex)
-                        {
-                            //do nothing for now
-                        }
-
-                    }
-
-                    //create view v_fileid_filesize_extension
-                    command.CommandText = @"CREATE VIEW v_fileid_filesize_extension AS "
-                        + "SELECT"
-                        + " f3.fileid, filesize, extension "
-                        + "FROM"
-                        + " filesizes f3 "
-                        + "LEFT JOIN extensions e2 ON f3.fileid = e2.fileid;";
-
-                    try
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                    catch (Exception ex)
-                    {
-                        //do nothing for now
-                    }
-
-                    //create filesize sums by extension
-                    foreach (var ext in extensions)
-                    {
-
-                        command.CommandText = @"CREATE VIEW v_"
-                        + ext + "_sum_filesize AS "
-                        + "SELECT SUM(filesize) FROM v_fileid_filesize_extension vffe WHERE extension = '" + ext + "';";
-                        try
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        catch (Exception ex)
-                        {
-                            //do nothing for now
-                        }
-
-                    }
-
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("Problem creating views: " + e.Message, "Error", MessageBoxButtons.OK);
-                }
-                finally
-                {
-                    connection.Close();
-                }
-
-            }//end using
-        }
 
     }
 }
+

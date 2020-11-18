@@ -12,27 +12,43 @@ namespace Parascan.Biz
 {
     public class Scanner
     {
-        const string dbName = "paraschema.db";
+        string dbName = "";
+        string dir = "";
+        string projName = "";
 
-        public static void INIT()
+
+        public Scanner(string dir, string projName)
+        {
+            this.dir = dir;
+            this.projName = projName;
+            this.dbName = projName + "_scan_" + DateTime.Now.Ticks + ".db";
+            
+        }
+
+        void INIT()
         {
             DAccess d = new DAccess(dbName);
-
-            if (!File.Exists(dbName))
+            
+            if (File.Exists(dbName))
+            {
+                File.Delete(dbName);
+            }
+            else
             {
                 d.CreateSchema();
             }
            
         }
-        public static void SCAN(string dir, string projName)
+        public void SCAN(string dir, string projName)
         {
             if(Directory.Exists(dir))
             {
+                INIT();
                 DAccess d = new DAccess(dbName);
                 d.InsertMeta(DateTime.Now.ToString(), dir, projName);
 
                 FileUtil fu = new FileUtil();
-                int scanid = Scanner.GetScanId(dir);
+                int scanid = this.GetScanId(dir);
                 foreach (var f in fu.GetFiles(dir))
                 {
                     d.InsertFile(f, scanid);
@@ -75,6 +91,8 @@ namespace Parascan.Biz
 
                 }
 
+                d.CreateViews();
+
 
 
             }
@@ -86,13 +104,13 @@ namespace Parascan.Biz
      
         }
 
-        public static int GetScanId(string scandirectory)
+        public int GetScanId(string scandirectory)
         {
             DAccess d = new DAccess(dbName);
             return d.GetMetaId(scandirectory);
         }
 
-        public static int GetFileId(int scanid, string path)
+        public int GetFileId(int scanid, string path)
         {
             try
             {

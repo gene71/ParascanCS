@@ -24,9 +24,9 @@ namespace Parascan
         {
             try
             {
+                Scanner s = new Scanner(@"C:\Users\geo\source\repos\Scriptora", "testProject2");
                 Cursor.Current = Cursors.WaitCursor;
-                Scanner.INIT();
-                Scanner.SCAN(@"C:\Users\geo\source\repos\Paradigm20", "testProject");
+                s.SCAN(@"C:\Users\geo\source\repos\Scriptora", "testProject2");
                 Cursor.Current = Cursors.Default;
                 MessageBox.Show("scan complete", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
